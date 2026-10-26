@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#16181C">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Copy Google Sheet row values one at a time and mark rows done.">
+  <title>Sheets Copy</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ================= MAIN ================= -->
+  <section id="main" class="screen">
+    <header class="bar">
+      <div class="titles">
+        <div id="profileName" class="title">Sheets Copy</div>
+        <div id="subTitle" class="sub"></div>
+      </div>
+      <button id="btnRefresh" class="icon" type="button" aria-label="Refresh from the sheet" data-icon="refresh"></button>
+      <button id="btnSettings" class="icon" type="button" aria-label="Settings" data-icon="settings"></button>
+    </header>
+
+    <div id="busy" class="busy" hidden></div>
+
+    <div id="counter" class="counter" hidden>
+      <div class="count-line">
+        <span id="position" class="position"></span>
+        <span id="rowInfo" class="row-info"></span>
+      </div>
+      <div class="progress"><div id="progressFill" class="progress-fill"></div></div>
+    </div>
+
+    <div id="banner" class="banner" role="alert" hidden></div>
+
+    <div id="fields" class="fields"></div>
+
+    <div id="state" class="state" hidden>
+      <h2 id="stateTitle"></h2>
+      <p id="stateDetail"></p>
+      <button id="stateSettings" class="btn primary" type="button" hidden>Open Settings</button>
+    </div>
+
+    <footer class="actions">
+      <button id="btnUndo" class="btn secondary square" type="button" aria-label="Undo the last Done" data-icon="undo"></button>
+      <button id="btnCopyNext" class="btn secondary grow copy-next" type="button" aria-label="Copy the next field">
+        <span data-icon="copy"></span>
+        <span class="two-line">
+          <span class="kicker">Copy next</span>
+          <span id="copyNextLabel" class="ellipsis">–</span>
+        </span>
+      </button>
+      <button id="btnDone" class="btn primary done-btn" type="button" aria-label="Done, go to the next row">
+        <span>Done</span><span data-icon="next"></span>
+      </button>
+    </footer>
+  </section>
+
+  <!-- ================= SETTINGS ================= -->
+  <section id="settings" class="screen" hidden>
+    <header class="bar">
+      <div class="titles"><div class="title">Settings</div></div>
+      <button id="btnSettingsClose" class="icon" type="button" aria-label="Back without saving" data-icon="close"></button>
+    </header>
+
+    <form id="settingsForm" class="form" autocomplete="off" novalidate>
+      <h3 class="section">Connection</h3>
+      <label class="field" for="fScriptUrl">Script URL</label>
+      <input id="fScriptUrl" type="url" inputmode="url" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec">
+      <p class="hint">The Web app URL from your Google Apps Script deployment (ends in /exec).</p>
+
+      <label class="field" for="fPasscode">Passcode</label>
+      <div class="with-button">
+        <input id="fPasscode" type="password" spellcheck="false" autocapitalize="off">
+        <button id="btnShowPass" class="btn secondary small" type="button">Show</button>
+      </div>
+
+      <label class="field" for="fUserName">Your name</label>
+      <input id="fUserName" type="text" autocapitalize="words">
+      <p class="hint">Written into the name column when you press Done.</p>
+
+      <h3 class="section">Sheet profile</h3>
+      <div class="with-button">
+        <select id="fProfile" aria-label="Profile"></select>
+        <button id="btnNewProfile" class="icon" type="button" aria-label="New profile" data-icon="add"></button>
+        <button id="btnDupProfile" class="icon" type="button" aria-label="Duplicate profile" data-icon="copy"></button>
+        <button id="btnDelProfile" class="icon" type="button" aria-label="Delete profile" data-icon="delete"></button>
+      </div>
+
+      <label class="field" for="fProfileName">Profile name</label>
+      <input id="fProfileName" type="text">
+      <p id="profileIdText" class="hint"></p>
+
+      <label class="field" for="fSheetLink">Google Sheets link</label>
+      <input id="fSheetLink" type="url" inputmode="url" spellcheck="false">
+      <p class="hint">Open the sheet on the right tab, then Share → Copy link, or copy it from the address bar.</p>
+
+      <div class="row">
+        <div class="grow2">
+          <label class="field" for="fTab">Tab</label>
+          <input id="fTab" type="text" list="tabList" placeholder="From the link">
+          <datalist id="tabList"></datalist>
+        </div>
+        <div>
+          <label class="field" for="fHeaderRow">Header row</label>
+          <input id="fHeaderRow" type="number" inputmode="numeric" min="1" step="1">
+        </div>
+      </div>
+
+      <h3 class="section">Columns</h3>
+      <label class="field" for="fCopyColumns">Columns to copy</label>
+      <input id="fCopyColumns" type="text" autocapitalize="characters" spellcheck="false" placeholder="C, D, F, G, H">
+      <p class="hint">In the order you paste them. Ranges work too: C-E, H</p>
+
+      <div class="row">
+        <div>
+          <label class="field" for="fTimestampColumn">Timestamp column</label>
+          <input id="fTimestampColumn" type="text" autocapitalize="characters" spellcheck="false" placeholder="J">
+        </div>
+        <div>
+          <label class="field" for="fNameColumn">Name column</label>
+          <input id="fNameColumn" type="text" autocapitalize="characters" spellcheck="false" placeholder="K">
+        </div>
+      </div>
+      <p class="hint">On Done, the date and time go in the timestamp column and your name in the name column (leave blank to skip).</p>
+
+      <h3 class="section">Which rows to show</h3>
+      <div class="row">
+        <div class="narrow">
+          <label class="field" for="fFilterColumn">Column</label>
+          <input id="fFilterColumn" type="text" autocapitalize="characters" spellcheck="false" placeholder="B">
+        </div>
+        <div>
+          <label class="field" for="fFilterValue">Show rows with</label>
+          <input id="fFilterValue" type="text" spellcheck="false" placeholder="NEW">
+        </div>
+        <div>
+          <label class="field" for="fDoneValue">When done, set to</label>
+          <input id="fDoneValue" type="text" spellcheck="false" placeholder="Done">
+        </div>
+      </div>
+      <p class="hint">Upper/lower case and spaces are ignored. Leave the column blank to show every row that has no timestamp yet.</p>
+
+      <button id="btnTest" class="btn secondary" type="button">Test connection</button>
+      <pre id="testResult" class="test-result" hidden></pre>
+
+      <div id="installBox" hidden>
+        <h3 class="section">App</h3>
+        <button id="btnInstall" class="btn secondary" type="button"><span data-icon="install"></span>Install on this phone</button>
+      </div>
+
+      <p class="version" id="versionText"></p>
+    </form>
+
+    <footer class="actions">
+      <div id="settingsError" class="settings-error" hidden></div>
+      <div class="actions-row">
+        <button id="btnCancel" class="btn secondary grow" type="button">Cancel</button>
+        <button id="btnSave" class="btn primary grow" type="button">Save</button>
+      </div>
+    </footer>
+  </section>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
